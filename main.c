@@ -27,6 +27,7 @@ main(void)
   cprintf("\ncpu%d: starting Fall 2021 xv6\n\n", cpunum());
   ioapicinit();    // another interrupt controller
   consoleinit();   // console hardware
+  displayinit();   // display driver
   uartinit();      // serial port
   pinit();         // process table
   binit();         // buffer cache
@@ -36,6 +37,7 @@ main(void)
   kinit2(P2V(4*1024*1024), P2V(PHYSTOP)); // must come after startothers()
   userinit();      // first user process
   mpmain();        // finish this processor's setup
+
 }
 
 // Other CPUs jump here from entryother.S.

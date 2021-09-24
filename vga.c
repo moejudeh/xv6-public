@@ -9,7 +9,7 @@
 /* This is the standard 256-color palette, in 0xRRGGBB format. Of course the VGA registers want 6 bits, not 8 per channel, so we do a bit
    of shifting when setting the registers: much easier than writing down the values in 6-bit form!
 */
-int vga256_24bit[256] = {
+const int vga256_24bit[256] = {
   0x000000, 0x0000a8, 0x00a800, 0x00a8a8, 0xa80000, 0xa800a8, 0xa85400, 0xa8a8a8,
   0x545454, 0x5454fc, 0x54fc54, 0x54fcfc, 0xfc5454, 0xfc54fc, 0xfcfc54, 0xfcfcfc,
   0x000000, 0x141414, 0x202020, 0x2c2c2c, 0x383838, 0x444444, 0x505050, 0x606060,
@@ -43,6 +43,8 @@ int vga256_24bit[256] = {
   0x2c402c, 0x2c4030, 0x2c4034, 0x2c403c, 0x2c4040, 0x2c3c40, 0x2c3440, 0x2c3040,
   0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
 };
+
+int cga256[256];
 
 
 /*    VGA fonts aren't actually stored in the graphics card, they disappear when you change modes,
@@ -364,7 +366,29 @@ void setdefaultVGApalette()
   }
 }
 
+void cgaSavePalette()
+{
+  outb(0x3C7, 0);
+  uint r, g, b;
+  for (int i = 0; i < 256; i++) {
+    r = inb(0x3C9);
+    g = inb(0x3C9);
+    b = inb(0x3C9);
+    cga256[i] = (r << 18 | g << 10 | b << 2);
+  }
+}
+
+void cgaRestorePalette()
+{
+  // restore the saved cga palette with vgaSetPalette
+  // TODO: Your code here:
+  for(int i = 0; i < 256; i++) {
+  	vgaSetPalette(i, cga256[i] >> 18, cga256[i] >> 10, cga256[i] >> 2);
+  }
+}
+
 void vgaMode13() {
+  cgaSavePalette();
 
   write3C2(0x63);
 
@@ -546,4 +570,5 @@ void vgaMode3() {
 
   inb(VGA+0x1A);
   outb(0x3C0, 0x20);
+  cgaRestorePalette();
 }

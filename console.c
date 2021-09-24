@@ -28,6 +28,10 @@ static struct {
 
 static char digits[] = "0123456789abcdef";
 
+// if f->whatever == 0
+// use this
+int globalConsoleColor = 0x0700;
+
   static void
 print_x64(addr_t x)
 {
@@ -164,7 +168,46 @@ cgaputc(int c)
   else if (c == BACKSPACE) {
     if (pos > 0) --pos;
   } else
-    crt[pos++] = (c&0xff) | 0x0700;  // gray on black
+    // crt[pos++] = (c&0xff) | 0x0700;  // gray on black
+    crt[pos++] = (c&0xff) | globalConsoleColor;  // gray on black
+      
+  if ((pos/80) >= 24){  // Scroll up.
+    memmove(crt, crt+80, sizeof(crt[0])*23*80);
+    pos -= 80;
+    memset(crt+pos, 0, sizeof(crt[0])*(24*80 - pos));
+  }
+
+  outb(CRTPORT, 14);
+  outb(CRTPORT+1, pos>>8);
+  outb(CRTPORT, 15);
+  outb(CRTPORT+1, pos);
+  crt[pos] = ' ' | 0x0700;
+}
+
+
+// my version
+// to pass struct file through
+  static void
+myCgaputc(int c, struct file *f)
+{
+  int pos;
+
+  // Cursor position: col + 80*row.
+  outb(CRTPORT, 14);
+  pos = inb(CRTPORT+1) << 8;
+  outb(CRTPORT, 15);
+  pos |= inb(CRTPORT+1);
+
+  if (c == '\n') {
+    pos += 80 - pos%80;
+  } else if (c == BACKSPACE) {
+    if (pos > 0) --pos;
+  } else {
+    if (f->dev_payload != 0)
+      crt[pos++] = (c&0xff) | (int)f->dev_payload;  // print in custom
+    else
+      crt[pos++] = (c&0xff) | globalConsoleColor;  // print in global
+  }
 
   if ((pos/80) >= 24){  // Scroll up.
     memmove(crt, crt+80, sizeof(crt[0])*23*80);
@@ -178,6 +221,8 @@ cgaputc(int c)
   outb(CRTPORT+1, pos);
   crt[pos] = ' ' | 0x0700;
 }
+
+
 
   void
 consputc(int c)
@@ -194,6 +239,28 @@ consputc(int c)
     uartputc(c);
   cgaputc(c);
 }
+
+
+
+// my version
+// to pass struct file thru
+  void
+myConsputc(int c, struct file* f)
+{
+  if (panicked) {
+    cli();
+    for(;;)
+      hlt();
+  }
+
+  if (c == BACKSPACE) {
+    uartputc('\b'); uartputc(' '); uartputc('\b');
+  } else
+    uartputc(c);
+  myCgaputc(c, f);
+}
+
+
 
 #define INPUT_BUF 128
 struct {
@@ -288,7 +355,21 @@ consoleread(struct file *f, char *dst, int n)
 int
 consoleioctl(struct file *f, int param, int value)
 {
-  cprintf("Got unknown console ioctl request. %d = %d\n",param,value);
+  // value holds the color 
+  // param 0 means change color for file
+  // param 1 means change global color
+  value = value << 8;
+
+  if(f->dev_payload == 0) {
+    f->dev_payload = (void *)0x0700;
+  }
+  if(param == 0) {
+    f->dev_payload = (void *)value;
+    return 1;
+  } else if(param == 1) {
+    globalConsoleColor = value;
+    return 1;
+  }
   return -1;
 }
 
@@ -299,8 +380,8 @@ consolewrite(struct file *f, char *buf, int n)
 
   acquire(&cons.lock);
   for(i = 0; i < n; i++)
-    consputc(buf[i] & 0xff);
-  release(&cons.lock);
+    myConsputc(buf[i] & 0xff, f);
+    release(&cons.lock);
 
   return n;
 }
