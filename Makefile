@@ -228,4 +228,10 @@ bootskel.img: bootskel.S
 	$(LD) -Ttext=0x7c00 -e start bootskel.o -o bootskellinked.o
 	$(OBJCOPY) -O binary bootskellinked.o bootskel.img
 
+bootsplash.img:	bootsplash.S
+	$(AS) bootsplash.S -o bootsplash.o
+	$(LD) -Ttext=0x7c00 -e start bootsplash.o -o bootsplashlinked.o
+	$(OBJCOPY) -O binary bootsplashlinked.o bootsplash.img
+	dd if=cover.raw of=bootsplash.img seek=1
+
 .PHONY: dist-test dist
