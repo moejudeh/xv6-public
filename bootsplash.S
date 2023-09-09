@@ -26,7 +26,17 @@ waitForKey:
     movb $0x00, %ah
     int $0x16
 
-    jmp printString
+    jmp printPicture
+
+printPicture:
+    movb $0x13, %al
+    movb $0x00, %ah
+
+    movb $0x12, 0xA0000
+
+    int $0x10
+
+    jmp stop
 
 stop:
     jmp stop
