@@ -46,6 +46,8 @@ const int vga256_24bit[256] = {
 
 int cga256[256];
 
+int cga256[256];
+
 
 /*    VGA fonts aren't actually stored in the graphics card, they disappear when you change modes,
       so we have to keep one here to restore when we switch back to text mode. */
