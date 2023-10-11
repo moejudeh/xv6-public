@@ -99,8 +99,40 @@ sys_mmap(void)
   int fd, flags;
   if(argint(0,&fd) < 0 || argint(1,&flags) < 0)
     return MMAP_FAILED;
+   
+  if(flags == 0) { 
+    struct file* f = proc->ofile[fd];
+    
+    // Check if the file descriptor is valid
+    if (f == 0) {
+        return MMAP_FAILED;
+    }
 
-  // TODO: your implementation
+    // Get the size of the file
+    int size = f->ip->size;
+
+    // Update process metadata to keep track of the mapping
+    proc->mmaps[proc->mmapcount].fd = fd;
+    proc->mmaps[proc->mmapcount].start = proc->mmaptop;
+    proc->mmapcount++;
+    proc->mmaptop += PGSIZE;
+
+    // Allocate memory for the process
+    char* mapped_memory = (char*)kalloc();
+    
+    if (mapped_memory == 0) {
+        return MMAP_FAILED; // Handle allocation failure
+    }
+
+    // Read the entire file's data into the allocated memory
+    int bytesRead = readi(f->ip, mapped_memory, f->off, size);
+
+    // Map the allocated memory to the desired address range
+    mappages(proc->pgdir, (void*)proc->mmaptop - PGSIZE, PGSIZE, v2p(mapped_memory), PTE_W | PTE_U);
+
+    return (void*)(proc->mmaptop - (PGSIZE));
+  }
+
   return MMAP_FAILED;
 }
 
